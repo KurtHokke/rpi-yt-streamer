@@ -18,7 +18,7 @@ if(NOT TEST)
 else()
     set(EXE test)
     add_executable(${EXE} 
-                    test.c)
+                    main.c)
 endif()
 
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
@@ -38,6 +38,10 @@ if(NOT "${script_result}" STREQUAL "0")
     message(FATAL_ERROR "Script failed: ${script_error}")
 else()
     message(STATUS "Script output: ${script_output}")
+endif()
+
+if(TEST)
+    return()
 endif()
 
 find_package(PkgConfig REQUIRED)

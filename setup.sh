@@ -3,7 +3,8 @@
 VENV="$1"
 #echo "${@[1]}" > out.txt
 #echo "${*[1]}"
-
+git show
+exit 0
 
 get_python_v() {
     python_version=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
