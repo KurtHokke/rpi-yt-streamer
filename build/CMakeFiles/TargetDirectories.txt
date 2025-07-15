@@ -1,0 +1,7 @@
+/home/src/c/rpi/build/CMakeFiles/server.dir
+/home/src/c/rpi/build/CMakeFiles/edit_cache.dir
+/home/src/c/rpi/build/CMakeFiles/rebuild_cache.dir
+/home/src/c/rpi/build/CMakeFiles/list_install_components.dir
+/home/src/c/rpi/build/CMakeFiles/install.dir
+/home/src/c/rpi/build/CMakeFiles/install/local.dir
+/home/src/c/rpi/build/CMakeFiles/install/strip.dir
