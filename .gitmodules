@@ -1,0 +1,3 @@
+[submodule "3rd/yt-dlp"]
+	path = 3rd/yt-dlp
+	url = https://github.com/yt-dlp/yt-dlp
