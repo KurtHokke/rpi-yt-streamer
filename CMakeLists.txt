@@ -9,6 +9,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(TEST "test" OFF)
 
+
+
 if(NOT TEST)
     set(EXE server)
     add_executable(${EXE} 
@@ -23,6 +25,20 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}" CACHE PATH "Installation prefix" FORCE)
 endif()
 message(STATUS "install prefix: ${CMAKE_INSTALL_PREFIX}\n")
+
+execute_process(
+    COMMAND ${CMAKE_COMMAND} -E env bash "${CMAKE_SOURCE_DIR}/setup.sh" "${CMAKE_INSTALL_PREFIX}/bin/server_venv"
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    RESULT_VARIABLE script_result
+    OUTPUT_VARIABLE script_output
+    ERROR_VARIABLE script_error
+)
+
+if(NOT "${script_result}" STREQUAL "0")
+    message(FATAL_ERROR "Script failed: ${script_error}")
+else()
+    message(STATUS "Script output: ${script_output}")
+endif()
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(libvlc REQUIRED IMPORTED_TARGET libvlc>=3.0.21)

@@ -1,8 +1,0 @@
-[
-{
-  "directory": "/home/src/c/rpi/build",
-  "command": "/usr/sbin/cc -DINSTALL_PREFIX=\\\"/home/src/c/rpi\\\"  -Wall -Wextra -Wpedantic -std=gnu11 -o CMakeFiles/server.dir/main.c.o -c /home/src/c/rpi/main.c",
-  "file": "/home/src/c/rpi/main.c",
-  "output": "CMakeFiles/server.dir/main.c.o"
-}
-]

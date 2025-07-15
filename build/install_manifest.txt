@@ -1,1 +1,0 @@
-/home/src/c/rpi/bin/server
