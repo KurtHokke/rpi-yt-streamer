@@ -1,4 +1,5 @@
 #define _GNU_SOURCE
+#include "utils.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,11 +14,7 @@
 #include <glob.h>
 #include <errno.h> // For errno
 
-#ifndef INSTALL_PREFIX
-#define INSTALL_PREFIX "/usr/local"
-#endif
-#define YT_DLP_PATH INSTALL_PREFIX "/bin/yt-dlp"
-#define DL_PATH INSTALL_PREFIX "/dl_path"
+
 
 #define PORT 8080
 #define BUFFER_SIZE 1024
@@ -195,6 +192,33 @@ int dl_video(char *const args[], unsigned long unix_time)
     return 0;
 }
 
+void *parse_metadata(void *arg)
+{
+    json_t *metadata = (json_t *)arg;
+    json_t *tb_array = json_object_get(metadata, "thumbnails");
+    if (!tb_array) {
+        printf("!tb_array\n");
+        goto CleanUp;
+    }
+    printf("Array size: %lu\n", json_array_size(tb_array));
+    json_t *tb_value = NULL;
+    json_t *tb_filepath = NULL;
+    size_t i = 0;
+    for (i = json_array_size(tb_array) - 1; i >= 0 && (tb_value = json_array_get(tb_array, i)); i--) {
+        if ((tb_filepath = json_object_get(tb_value, "filepath"))) {
+            printf("tb_filepath: %s\n", json_string_value(tb_filepath));
+            break;
+        }
+    }
+    if (1) {
+        json_dump_file(metadata, "janssondump.json", JSON_INDENT(4));
+        goto CleanUp;
+    }
+CleanUp:
+    json_decref(metadata);
+    pthread_exit(NULL);
+}
+
 void *handle_client(void *arg)
 {
     int sock = *(int *)arg;
@@ -206,28 +230,20 @@ void *handle_client(void *arg)
         pthread_exit(NULL);
     }
     buffer[bytes_read] = '\0';
-    printf("Client: %s\n", buffer);
+//    printf("Client: %s\n", buffer);
 
-    unsigned long unix_time = (unsigned long)time(NULL);
-    char outfile_path[PATH_MAX];
-    snprintf(outfile_path, sizeof(outfile_path), DL_PATH"/%lu.%%(ext)s", unix_time);
-
-    char *const args[] = {
-        "yt-dlp",
-        "-f", "bestvideo[height<=1080]+bestaudio/best[height<=1080]",
-        "--write-thumbnail",
-        //"-o", DL_PATH"/%(title)s [%(id)s].%(ext)s",
-        "-o", outfile_path,
-        "-O", "%(title)s\n%(ext)s\n%(resolution)s\n%(vcodec)s\n%(acodec)s\n%(channel)s\n%(channel_url)s",
-        "--no-simulate",
-        buffer,
-        NULL
-    };
-
-    if (dl_video(args, unix_time) != 0) {
+    json_t *metadata = dl_ytdlp(buffer);
+    if (!metadata) {
+        printf("\n\nFAAAAAIIILLLL\n\n");
+        json_decref(metadata);
         pthread_exit(NULL);
     }
-
+    pthread_t parse_metadata_thread;
+    pthread_create(&parse_metadata_thread, NULL, parse_metadata, metadata);
+    pthread_detach(parse_metadata_thread);
+    free(arg);
+    close(sock);
+/*
     char globfile[PATH_MAX];
     snprintf(globfile, sizeof(globfile), DL_PATH"/%lu*", unix_time);
     char **matches = find_glob(globfile);
@@ -253,7 +269,7 @@ void *handle_client(void *arg)
     free(matches[i + 1]);
     free(matches);
     
-    send(sock, buffer, bytes_read, 0);
+    send(sock, buffer, bytes_read, 0);*/
 /*
     pthread_t vlc_thread;
     int *vlc_sock = malloc(sizeof(int));
@@ -262,10 +278,6 @@ void *handle_client(void *arg)
     pthread_create(&vlc_thread, NULL, handle_vlc_playback, vlc_sock);
     pthread_detach(vlc_thread);
 */
-    free(arg); // Free original socket pointer
-    //pthread_exit(NULL); // Terminate this thread
-
-    close(sock);
     pthread_exit(NULL);
 }
 

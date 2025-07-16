@@ -8,17 +8,23 @@ set(CMAKE_C_FLAGS "-Wall -Wextra -Wpedantic")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(TEST "test" OFF)
+option(USE_PYPY "use pypy instead of cpython" OFF)
 
-
+if(USE_PYPY)
+    set(_USE_PYPY "true")
+else()
+    set(_USE_PYPY "false")
+endif()
 
 if(NOT TEST)
     set(EXE server)
     add_executable(${EXE} 
-                    main.c)
+                    src/main.c
+                    src/yt-dlp.c)
 else()
     set(EXE test)
     add_executable(${EXE} 
-                    main.c)
+                    src/main.c)
 endif()
 
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
@@ -27,29 +33,46 @@ endif()
 message(STATUS "install prefix: ${CMAKE_INSTALL_PREFIX}\n")
 
 execute_process(
-    COMMAND ${CMAKE_COMMAND} -E env bash "${CMAKE_SOURCE_DIR}/setup.sh" "${CMAKE_INSTALL_PREFIX}/bin/server_venv"
+    COMMAND ${CMAKE_COMMAND} -E env bash "${CMAKE_SOURCE_DIR}/setup.sh" 
+                                            "${_USE_PYPY}"
+                                            "${CMAKE_INSTALL_PREFIX}" 
+                                            "${CMAKE_SOURCE_DIR}/3rd"
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     RESULT_VARIABLE script_result
     OUTPUT_VARIABLE script_output
     ERROR_VARIABLE script_error
 )
-
 if(NOT "${script_result}" STREQUAL "0")
     message(FATAL_ERROR "Script failed: ${script_error}")
 else()
-    message(STATUS "Script output: ${script_output}")
+    message(STATUS "Script output: ${script_output}${script_error}")
 endif()
 
 if(TEST)
-    return()
+    message(FATAL_ERROR "test")
 endif()
+
+find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Embed)
+message(STATUS "Python3_EXECUTABLE: ${Python3_EXECUTABLE}")
+message(STATUS "Python3_VERSION: ${Python3_VERSION}")
+message(STATUS "Python3_VERSION_MAJOR: ${Python3_VERSION_MAJOR}")
+message(STATUS "Python3_VERSION_MINOR: ${Python3_VERSION_MINOR}")
+message(STATUS "Python3_INCLUDE_DIRS: ${Python3_INCLUDE_DIRS}")
+message(STATUS "Python3_LIBRARIES: ${Python3_LIBRARIES}")
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(libvlc REQUIRED IMPORTED_TARGET libvlc>=3.0.21)
 pkg_check_modules(jansson REQUIRED IMPORTED_TARGET jansson>=2.14)
 
+
 target_compile_definitions(${EXE} PRIVATE "INSTALL_PREFIX=\"${CMAKE_INSTALL_PREFIX}\"")
-target_link_libraries(${EXE} PRIVATE PkgConfig::libvlc PkgConfig::jansson)
+target_compile_definitions(${EXE} PRIVATE
+    "VENV_SITE_PACKAGES=\"${CMAKE_INSTALL_PREFIX}/bin/_venv/lib/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages\""
+)
+
+target_include_directories(${EXE} PRIVATE ${Python3_INCLUDE_DIRS})
+
+target_link_libraries(${EXE} PRIVATE PkgConfig::libvlc PkgConfig::jansson ${Python3_LIBRARIES})
 
 install(TARGETS ${EXE} DESTINATION bin)
 

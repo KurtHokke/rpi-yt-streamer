@@ -1,6 +1,9 @@
+**/.vscode/
+**/notrack/
 **/build/
 /bin/
 
+test
 
 CMakeLists.txt.user
 CMakeCache.txt
