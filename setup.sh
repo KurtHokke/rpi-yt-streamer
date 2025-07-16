@@ -11,6 +11,11 @@ USE_PYPY="$1"
 INSTALL_PREFIX="$2"
 VENV="${INSTALL_PREFIX}/bin/_venv"
 PATH_TO_3RD_DIR="$3"
+
+echo "see this????"
+echo "no???" >&2
+
+
 ensure_pypyvenvpip() {
     [[ -f "${VENV}/.venv_installed" ]] && return 0
     if ! command -v pypy3 >/dev/null 2>&1; then

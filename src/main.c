@@ -18,7 +18,7 @@
 
 #define PORT 8080
 #define BUFFER_SIZE 1024
-
+/*
 char *match_ext(char **pathv, const char **extv)
 {
     char *ret = NULL;
@@ -34,7 +34,6 @@ char *match_ext(char **pathv, const char **extv)
     }
     return NULL;
 }
-
 char **find_glob(const char *pattern)
 {
     char **ret = NULL;
@@ -64,8 +63,8 @@ char **find_glob(const char *pattern)
         globfree(&results);
     }
     return ret;
-}
-
+}*/
+/*
 void *handle_vlc_playback(void *arg)
 {
     int sock = *(int *)arg;
@@ -83,7 +82,7 @@ void *handle_vlc_playback(void *arg)
 
     // Play the downloaded file (modify path as needed)
     char video_path[PATH_MAX];
-    snprintf(video_path, sizeof(video_path), "%s/*", DL_PATH); // Match yt-dlp's output
+    snprintf(video_path, sizeof(video_path), "%s/\*", DL_PATH); // Match yt-dlp's output
     
     libvlc_media_player_t *mp = libvlc_media_player_new(inst);
     libvlc_media_t *media = libvlc_media_new_path(inst, video_path);
@@ -105,7 +104,6 @@ void *handle_vlc_playback(void *arg)
     
     pthread_exit(NULL);
 }
-
 int dl_video(char *const args[], unsigned long unix_time)
 {
     int pipefd[2];
@@ -191,6 +189,7 @@ int dl_video(char *const args[], unsigned long unix_time)
     }
     return 0;
 }
+*/
 
 void *parse_metadata(void *arg)
 {
@@ -241,8 +240,8 @@ void *handle_client(void *arg)
     pthread_t parse_metadata_thread;
     pthread_create(&parse_metadata_thread, NULL, parse_metadata, metadata);
     pthread_detach(parse_metadata_thread);
-    free(arg);
     close(sock);
+    free(arg);
 /*
     char globfile[PATH_MAX];
     snprintf(globfile, sizeof(globfile), DL_PATH"/%lu*", unix_time);

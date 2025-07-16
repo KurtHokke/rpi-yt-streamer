@@ -2,50 +2,34 @@ cmake_minimum_required(VERSION 3.10)
 
 project(server C)
 
-set(CMAKE_C_STANDARD 11)
-set(CMAKE_C_STANDARD_REQUIRED ON)
-set(CMAKE_C_FLAGS "-Wall -Wextra -Wpedantic")
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+include(${CMAKE_SOURCE_DIR}/cmake/config.cmake)
 
-option(TEST "test" OFF)
-option(USE_PYPY "use pypy instead of cpython" OFF)
 
-if(USE_PYPY)
-    set(_USE_PYPY "true")
-else()
-    set(_USE_PYPY "false")
-endif()
-
-if(NOT TEST)
-    set(EXE server)
-    add_executable(${EXE} 
-                    src/main.c
-                    src/yt-dlp.c)
-else()
-    set(EXE test)
-    add_executable(${EXE} 
-                    src/main.c)
-endif()
+set(EXE server)
+add_executable(${EXE} src/main.c
+                        src/ytdlp.c)
 
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}" CACHE PATH "Installation prefix" FORCE)
 endif()
-message(STATUS "install prefix: ${CMAKE_INSTALL_PREFIX}\n")
+message(STATUS "${_clrBoldGreen}install prefix${_clrReset}: ${CMAKE_INSTALL_PREFIX}\n")
 
+message(STATUS "${_clr_Yellow}Executing setup.sh...${_clrReset}")
 execute_process(
     COMMAND ${CMAKE_COMMAND} -E env bash "${CMAKE_SOURCE_DIR}/setup.sh" 
                                             "${_USE_PYPY}"
                                             "${CMAKE_INSTALL_PREFIX}" 
                                             "${CMAKE_SOURCE_DIR}/3rd"
+    #COMMAND_ECHO STDOUT
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     RESULT_VARIABLE script_result
-    OUTPUT_VARIABLE script_output
+    #OUTPUT_VARIABLE script_output
     ERROR_VARIABLE script_error
 )
 if(NOT "${script_result}" STREQUAL "0")
-    message(FATAL_ERROR "Script failed: ${script_error}")
+    message(FATAL_ERROR "Script errors:\n${script_error}")
 else()
-    message(STATUS "Script output: ${script_output}${script_error}")
+    message(STATUS "Script ran successfully")
 endif()
 
 if(TEST)
