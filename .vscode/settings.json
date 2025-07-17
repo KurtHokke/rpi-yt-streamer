@@ -1,0 +1,8 @@
+{
+    "C_Cpp.default.includePath": [
+        "/usr/include/python3.13"
+    ],
+    "C_Cpp.default.intelliSenseMode": "linux-gcc-x64",
+    "C_Cpp.default.compilerPath": "/usr/sbin/gcc",
+    "C_Cpp.default.cStandard": "gnu17"
+}

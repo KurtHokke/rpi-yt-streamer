@@ -7,7 +7,8 @@ include(${CMAKE_SOURCE_DIR}/cmake/config.cmake)
 
 set(EXE server)
 add_executable(${EXE} src/main.c
-                        src/ytdlp.c)
+                        src/ytdlp.c
+                        src/sigact.c)
 
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}" CACHE PATH "Installation prefix" FORCE)
@@ -16,7 +17,7 @@ message(STATUS "${_clrBoldGreen}install prefix${_clrReset}: ${CMAKE_INSTALL_PREF
 
 message(STATUS "${_clr_Yellow}Executing setup.sh...${_clrReset}")
 execute_process(
-    COMMAND ${CMAKE_COMMAND} -E env bash "${CMAKE_SOURCE_DIR}/setup.sh" 
+    COMMAND ${CMAKE_COMMAND} -E env bash "${CMAKE_SOURCE_DIR}/setup.sh"
                                             "${_USE_PYPY}"
                                             "${CMAKE_INSTALL_PREFIX}" 
                                             "${CMAKE_SOURCE_DIR}/3rd"

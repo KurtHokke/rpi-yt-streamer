@@ -1,46 +1,72 @@
-
-#include "utils.h"
+//#define PY_SSIZE_T_CLEAN
 #include <Python.h>
+#include "utils.h"
+#include "ytdlp.h"
+#include "sigact.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <jansson.h>
 
-json_t *dl_ytdlp(char *url)
+json_t *dl_ytdlp(struct ytdlp_opts_t *opts)
 {
+    PyGILState_STATE gstate = PyGILState_Ensure();
+
     json_error_t error;
     json_t *ret = NULL;
-
-    Py_Initialize();
+    PyObject *pDict = NULL;
+    PyObject *pOuttmplDict = NULL;
+    PyObject *pInstance = NULL;
+    PyObject *pMethod = NULL;
+    PyObject *pArgs = NULL;
+    PyObject *pResult = NULL;
+    PyObject *pSanitize = NULL;
+    PyObject *pArgsSanitize = NULL;
+    PyObject *pResultSanitized = NULL;
+    PyObject *pJsonDumps = NULL;
+    PyObject *pJsonArgs = NULL;
+    PyObject *pKwargs = NULL;
+    PyObject *pRepr = NULL;
+    PyObject *pJsonString = NULL;
 
     // Add current directory to sys.path to ensure yt_dlp is found
     PyRun_SimpleString("import sys\nsys.path.append('"YT_DLP_PATH"')\n");
     PyRun_SimpleString("import sys\nsys.path.append('"VENV_SITE_PACKAGES"')\n");
 
     // Import yt_dlp module
-    PyObject *pModule = PyImport_ImportModule("yt_dlp");
-    if (!pModule) {
+    ctx->Py.pModule = PyImport_ImportModule("yt_dlp");
+    if (!ctx->Py.pModule) {
         PyErr_Print();
         fprintf(stderr, "Failed to import yt_dlp\n");
-        Py_Finalize();
-        return NULL;
+        goto CleanUp;
     }
-    PyObject *pClass = PyObject_GetAttrString(pModule, "YoutubeDL");
-    if (!pClass) {
+    ctx->Py.pJsonModule = PyImport_ImportModule("json");
+    if (!ctx->Py.pJsonModule) {
+        PyErr_Print();
+        fprintf(stderr, "Failed to import json\n");
+        goto CleanUp;
+    }
+    ctx->Py.pClass = PyObject_GetAttrString(ctx->Py.pModule, "YoutubeDL");
+    if (!ctx->Py.pClass) {
         PyErr_Print();
         fprintf(stderr, "Failed to get YoutubeDL class\n");
-        Py_DECREF(pModule);
-        Py_Finalize();
-        return NULL;
+        goto CleanUp;
     }
-    PyObject *pDict = PyDict_New();
+
+    pDict = PyDict_New();
     if (!pDict) {
         PyErr_Print();
         fprintf(stderr, "Failed to create options dictionary\n");
-        Py_DECREF(pClass);
-        Py_DECREF(pModule);
-        Py_Finalize();
-        return NULL;
+        goto CleanUp;
     }
+    pOuttmplDict = PyDict_New();
+    if (!pOuttmplDict) {
+        PyErr_Print();
+        fprintf(stderr, "Failed to create Outtmpl dictionary\n");
+        goto CleanUp;
+    }
+    PyDict_SetItemString(pOuttmplDict, "default", PyUnicode_FromString(DL_PATH"/%(title)s [%(id)s].%(ext)s"));
+    PyDict_SetItemString(pOuttmplDict, "thumbnail", PyUnicode_FromString(DL_PATH"/thumbnails/%(title)s [%(id)s].%(ext)s"));
+    PyDict_SetItemString(pDict, "outtmpl", pOuttmplDict);
     PyDict_SetItemString(pDict, "extract_flat", PyUnicode_FromString("discard_in_playlist"));
     PyDict_SetItemString(pDict, "format", PyUnicode_FromString("bestvideo[height<=1080]+bestaudio/best[height<=1080]"));
     PyDict_SetItemString(pDict, "writethumbnail", Py_True);
@@ -49,123 +75,67 @@ json_t *dl_ytdlp(char *url)
     PyDict_SetItemString(pDict, "ignoreerrors", PyUnicode_FromString("only_download"));
     PyDict_SetItemString(pDict, "ffmpeg_location", PyUnicode_FromString(INSTALL_PREFIX"/bin/ffmpeg"));
 
-    PyObject *pInstance = PyObject_CallObject(pClass, PyTuple_Pack(1, pDict));
+
+
+    pInstance = PyObject_CallObject(ctx->Py.pClass, PyTuple_Pack(1, pDict));
     if (!pInstance) {
         PyErr_Print();
         fprintf(stderr, "Failed to instantiate YoutubeDL\n");
-        Py_DECREF(pDict);
-        Py_DECREF(pClass);
-        Py_DECREF(pModule);
-        Py_Finalize();
-        return NULL;
+        goto CleanUp;
     }
-    PyObject *pMethod = PyObject_GetAttrString(pInstance, "extract_info");
+    pMethod = PyObject_GetAttrString(pInstance, "extract_info");
     if (!pMethod) {
         PyErr_Print();
         fprintf(stderr, "Failed to get extract_info method\n");
-        Py_DECREF(pInstance);
-        Py_DECREF(pDict);
-        Py_DECREF(pClass);
-        Py_DECREF(pModule);
-        Py_Finalize();
-        return NULL;
+        goto CleanUp;
     }
 
-    PyObject *pArgs = PyTuple_New(6);
-    PyTuple_SetItem(pArgs, 0, PyUnicode_FromString(url)); // url
+    pArgs = PyTuple_New(6);
+    PyTuple_SetItem(pArgs, 0, PyUnicode_FromString(opts->url)); // url
     PyTuple_SetItem(pArgs, 1, Py_True); // download=True
     PyTuple_SetItem(pArgs, 2, Py_None);  // ie_key=None
     PyTuple_SetItem(pArgs, 3, Py_None);  // extra_info=None
     PyTuple_SetItem(pArgs, 4, Py_True);  // process=True
     PyTuple_SetItem(pArgs, 5, Py_False); // force_generic_extractor=False
 
-    PyObject *pResult = PyObject_CallObject(pMethod, pArgs);
+    pResult = PyObject_CallObject(pMethod, pArgs);
     if (!pResult) {
         PyErr_Print();
         fprintf(stderr, "Failed to call extract_info\n");
-        Py_DECREF(pArgs);
-        Py_DECREF(pMethod);
-        Py_DECREF(pInstance);
-        Py_DECREF(pDict);
-        Py_DECREF(pClass);
-        Py_DECREF(pModule);
-        Py_Finalize();
-        return NULL;
+        goto CleanUp;
     }
 
-    PyObject *pSanitize = PyObject_GetAttrString(pInstance, "sanitize_info");
+    pSanitize = PyObject_GetAttrString(pInstance, "sanitize_info");
     if (!pSanitize) {
         PyErr_Print();
         fprintf(stderr, "Failed to get sanitize_info method\n");
-        Py_DECREF(pMethod);
-        Py_DECREF(pInstance);
-        Py_DECREF(pDict);
-        Py_DECREF(pClass);
-        Py_DECREF(pModule);
-        Py_Finalize();
-        return NULL;
+        goto CleanUp;
     }
-    PyObject *pArgsSanitize = PyTuple_New(1);
+    pArgsSanitize = PyTuple_New(1);
     PyTuple_SetItem(pArgsSanitize, 0, pResult);
-    PyObject *pResultSanitized = PyObject_CallObject(pSanitize, pArgsSanitize);
+    pResultSanitized = PyObject_CallObject(pSanitize, pArgsSanitize);
     if (!pResultSanitized) {
         PyErr_Print();
         fprintf(stderr, "Failed to call sanitize_info\n");
-        Py_DECREF(pResult);
-        Py_DECREF(pArgs);
-        Py_DECREF(pMethod);
-        Py_DECREF(pSanitize);
-        Py_DECREF(pInstance);
-        Py_DECREF(pDict);
-        Py_DECREF(pClass);
-        Py_DECREF(pModule);
-        Py_Finalize();
-        return NULL;
+        goto CleanUp;
     }
 
-    PyObject *pJsonModule = PyImport_ImportModule("json");
-    if (!pJsonModule) {
-        PyErr_Print();
-        fprintf(stderr, "Failed to import json\n");
-        Py_DECREF(pResultSanitized);
-        Py_DECREF(pResult);
-        Py_DECREF(pArgs);
-        Py_DECREF(pMethod);
-        Py_DECREF(pSanitize);
-        Py_DECREF(pInstance);
-        Py_DECREF(pDict);
-        Py_DECREF(pClass);
-        Py_DECREF(pModule);
-        Py_Finalize();
-        return NULL;
-    }
-    PyObject *pJsonDumps = PyObject_GetAttrString(pJsonModule, "dumps");
+
+    pJsonDumps = PyObject_GetAttrString(ctx->Py.pJsonModule, "dumps");
     if (!pJsonDumps) {
         PyErr_Print();
         fprintf(stderr, "Failed to get json.dumps\n");
-        Py_DECREF(pResult);
-        Py_DECREF(pResultSanitized);
-        Py_DECREF(pArgs);
-        Py_DECREF(pArgsSanitize);
-        Py_DECREF(pMethod);
-        Py_DECREF(pSanitize);
-        Py_DECREF(pInstance);
-        Py_DECREF(pDict);
-        Py_DECREF(pClass);
-        Py_DECREF(pJsonModule);
-        Py_DECREF(pModule);
-        Py_Finalize();
-        return NULL;
+        goto CleanUp;
     }
 
     // Call json.dumps(pResult, indent=2, ensure_ascii=False)
-    PyObject *pJsonArgs = PyTuple_New(1);
+    pJsonArgs = PyTuple_New(1);
     PyTuple_SetItem(pJsonArgs, 0, pResultSanitized); // Borrowed reference
-    PyObject *pKwargs = PyDict_New();
-    //PyDict_SetItemString(pKwargs, "indent", PyLong_FromLong(2));
+
+    pKwargs = PyDict_New();
     PyDict_SetItemString(pKwargs, "ensure_ascii", Py_False);
-    PyObject *pRepr = NULL;
-    PyObject *pJsonString = PyObject_Call(pJsonDumps, pJsonArgs, pKwargs);
+
+    pJsonString = PyObject_Call(pJsonDumps, pJsonArgs, pKwargs);
     if (!pJsonString || !PyUnicode_Check(pJsonString)) {
         PyErr_Print();
         fprintf(stderr, "Failed to serialize pResultSanitized to JSON\n");
@@ -178,7 +148,6 @@ json_t *dl_ytdlp(char *url)
             Py_XDECREF(pJsonString);
         }
         pJsonString = NULL;
-        //Py_XDECREF(pRepr);
     } else {
         printf("pResult (JSON):\n%.*s\n", 100, PyUnicode_AsUTF8(pJsonString));
     }
@@ -194,21 +163,19 @@ json_t *dl_ytdlp(char *url)
         fprintf(stderr, "json_loads failed: %s\n", error.text);
     }
 CleanUp:
-    Py_XDECREF(pJsonString);
-    Py_DECREF(pKwargs);
-    Py_DECREF(pJsonArgs);
-    Py_DECREF(pJsonDumps);
-    Py_DECREF(pResult);
-    Py_DECREF(pResultSanitized);
-    Py_DECREF(pArgs);
-    Py_DECREF(pArgsSanitize);
-    Py_DECREF(pMethod);
-    Py_DECREF(pSanitize);
-    Py_DECREF(pInstance);
-    Py_DECREF(pDict);
-    Py_DECREF(pClass);
-    Py_DECREF(pJsonModule);
-    Py_DECREF(pModule);
-    Py_Finalize();
+    if (pJsonString) Py_XDECREF(pJsonString);
+    if (pKwargs) Py_DECREF(pKwargs);
+    if (pJsonArgs) Py_DECREF(pJsonArgs);
+    if (pJsonDumps) Py_DECREF(pJsonDumps);
+    if (pResult) Py_DECREF(pResult);
+    if (pResultSanitized) Py_DECREF(pResultSanitized);
+    if (pArgs) Py_DECREF(pArgs);
+    if (pArgsSanitize) Py_DECREF(pArgsSanitize);
+    if (pMethod) Py_DECREF(pMethod);
+    if (pSanitize) Py_DECREF(pSanitize);
+    if (pInstance) Py_DECREF(pInstance);
+    if (pDict) Py_DECREF(pDict);
+    if (pOuttmplDict) Py_DECREF(pOuttmplDict);
+    PyGILState_Release(gstate);  // Release GIL
     return ret;
 }

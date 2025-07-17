@@ -1,8 +1,9 @@
-**/.vscode/
+
 **/notrack/
 **/build/
 /bin/
-
+/dl_path/
+/src/old/
 test
 
 CMakeLists.txt.user
@@ -14,6 +15,8 @@ Makefile
 cmake_install.cmake
 install_manifest.txt
 compile_commands.json
+janssondump.json
+python.supp
 CTestTestfile.cmake
 _deps
 CMakeUserPresets.json

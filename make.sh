@@ -17,3 +17,7 @@ server() {
     cd "$SOURCE_DIR" || return
     [ -f "./bin/server" ] && ./bin/server "$@"
 }
+cli_to_api() {
+    ( source "${SOURCE_DIR}/bin/_venv/bin/activate" && \
+      python "${SOURCE_DIR}/3rd/yt-dlp/devscripts/cli_to_api.py" "$@" )
+}
