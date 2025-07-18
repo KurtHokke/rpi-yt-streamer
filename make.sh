@@ -15,7 +15,7 @@ build() {
 }
 server() {
     cd "$SOURCE_DIR" || return
-    [ -f "./bin/server" ] && ./bin/server "$@"
+    [ -f "./bin/yt-dlp-server" ] && ./bin/yt-dlp-server "$@"
 }
 cli_to_api() {
     ( source "${SOURCE_DIR}/bin/_venv/bin/activate" && \

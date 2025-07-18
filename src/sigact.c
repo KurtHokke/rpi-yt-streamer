@@ -24,7 +24,7 @@ void free_all_exit(int e, const char *msg)
         if (ctx->Py.main_tstate) {
             PyEval_RestoreThread(ctx->Py.main_tstate);
         }
-        Py_Finalize();
+        if (Py_IsInitialized()) Py_Finalize();
         free(ctx);
     }
     exit(e);
@@ -33,7 +33,15 @@ void free_all_exit(int e, const char *msg)
 void handle_sigint(int sig)
 {
     psignal(sig, "\nReceived signal");
-    free_all_exit(sig, "");
+    switch(sig) {
+        case SIGINT:
+        case SIGTERM:
+            free_all_exit(sig, "");
+            break;
+        default:
+            break;
+    }
+    //free_all_exit(sig, "");
 }
 
 void setup_signal_handler(void)
@@ -41,16 +49,25 @@ void setup_signal_handler(void)
     struct sigaction sa;
     sa.sa_handler = handle_sigint;
     sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
+    //sa.sa_flags = 0;
+    sa.sa_flags = SA_RESTART;
     
-    ;
+    // Block other signals during handler execution
+    sigaddset(&sa.sa_mask, SIGINT);
+    sigaddset(&sa.sa_mask, SIGTERM);
+    sigaddset(&sa.sa_mask, SIGHUP);
+    
     if (sigaction(SIGINT, &sa, NULL) == -1) {
         perror("Failed to set up SIGINT handler");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     if (sigaction(SIGTERM, &sa, NULL) == -1) {
         perror("Failed to set up SIGTERM handler");
-        exit(1);
+        exit(EXIT_FAILURE);
+    }
+    if (sigaction(SIGHUP, &sa, NULL) == -1) {
+        perror("sigaction(SIGHUP)");
+        exit(EXIT_FAILURE);
     }
     signal(SIGPIPE, SIG_IGN);
 }

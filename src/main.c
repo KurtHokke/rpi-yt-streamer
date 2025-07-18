@@ -75,7 +75,6 @@ void *handle_client(void *arg)
         close(*client_fd);
         pthread_exit(NULL);
     }
-    //char buffer[BUFFER_SIZE];
 
     ssize_t bytes_read = read(*client_fd, opts->url, URL_MAX_LEN - 1);
     if (bytes_read <= 0) {
@@ -115,31 +114,11 @@ void *handle_client(void *arg)
     pthread_cleanup_pop(0);
     return (void *)0;
 }
-int check_start(void)
-{
-    //struct stat st;
-    if (access(YT_DLP_PATH"/yt_dlp/__init__.py", F_OK) != 0) {
-        goto FailedCheck;
-    }
-    if (access(DL_PATH, F_OK | W_OK) != 0) {
-        goto FailedCheck;
-    }
-    printf("check succeeded!\n");
-    return 0;
-FailedCheck:
-    printf("check failed! pass '--help' to learn how to fix\n");
-    return -1;
-}
+
 int main(int argc, char *argv[])
 {
-    if ((argc > 1) && (strcmp("--help", argv[1]) == 0)) {
-        printf(PROGRAM_HELP_MSG);
-        return 0;
-    }
-    if (check_start() != 0) {
-        printf("checkstart failed\n");
-        return 1;
-    }
+    int check_ret = check_start(argc, argv);
+    if (check_ret != 0) return check_ret;
 
     setup_signal_handler();
     ctx = ctx_init();

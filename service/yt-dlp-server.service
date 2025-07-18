@@ -1,0 +1,13 @@
+[Unit]
+Description=yt-dlp-server for raspberry pi
+After=network.target
+
+[Service]
+ExecStart=/home/redno/c/rpi-yt-streamer/bin/yt-dlp-server
+WorkingDirectory=/home/redno/c/rpi-yt-streamer/bin
+Restart=always
+User=redno
+Group=redno
+
+[Install]
+WantedBy=multi-user.target

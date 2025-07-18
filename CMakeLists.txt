@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(server C)
+project(yt-dlp-server C)
 
 include(${CMAKE_SOURCE_DIR}/cmake/config.cmake)
 
 
-set(EXE server)
+set(EXE yt-dlp-server)
 add_executable(${EXE} src/main.c
                         src/ytdlp.c
                         src/sigact.c)

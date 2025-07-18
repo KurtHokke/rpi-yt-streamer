@@ -9,6 +9,7 @@
 
 json_t *dl_ytdlp(struct ytdlp_opts_t *opts)
 {
+    
     PyGILState_STATE gstate = PyGILState_Ensure();
 
     json_error_t error;

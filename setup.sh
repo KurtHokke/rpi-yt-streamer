@@ -11,6 +11,7 @@ USE_PYPY="$1"
 INSTALL_PREFIX="$2"
 VENV="${INSTALL_PREFIX}/bin/_venv"
 PATH_TO_3RD_DIR="$3"
+DL_PATH="${INSTALL_PREFIX}/dl_path"
 
 ensure_pypyvenvpip() {
     [[ -f "${VENV}/.venv_installed" ]] && return 0
@@ -130,6 +131,28 @@ copy_ytdlp() {
     fi
     return 0
 }
+
+create_servicefile() {
+[ ! -d "./service" ] && mkdir -p ./service
+cat <<EOF > ./service/yt-dlp-server.service
+[Unit]
+Description=yt-dlp-server for raspberry pi
+After=network.target
+
+[Service]
+ExecStart=${INSTALL_PREFIX}/bin/yt-dlp-server
+WorkingDirectory=${INSTALL_PREFIX}/bin
+Restart=always
+User=${USER}
+Group=${USER}
+
+[Install]
+WantedBy=multi-user.target
+EOF
+}
+
+[[ ! -d "$DL_PATH" ]] && mkdir -p "$DL_PATH"
+
 if [[ "$USE_PYPY" == "true" ]]; then
     if ! ensure_pypyvenvpip; then
         exit $?
@@ -151,4 +174,5 @@ fi
 if ! copy_ytdlp; then
     exit $?
 fi
+create_servicefile
 exit 0
