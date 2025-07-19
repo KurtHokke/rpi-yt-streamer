@@ -16,6 +16,10 @@ json_t *dl_ytdlp(struct ytdlp_opts_t *opts)
     json_t *ret = NULL;
     PyObject *pDict = NULL;
     PyObject *pOuttmplDict = NULL;
+    PyObject *pPostProcessList = NULL;
+    PyObject *pKey1Dict = NULL;
+    PyObject *pKey2Dict = NULL;
+    PyObject *pKey3Dict = NULL;
     PyObject *pInstance = NULL;
     PyObject *pMethod = NULL;
     PyObject *pArgs = NULL;
@@ -65,12 +69,56 @@ json_t *dl_ytdlp(struct ytdlp_opts_t *opts)
         fprintf(stderr, "Failed to create Outtmpl dictionary\n");
         goto CleanUp;
     }
+    pPostProcessList = PyList_New(3);
+    if (!pPostProcessList) {
+        PyErr_Print();
+        fprintf(stderr, "Failed to create PostProcess list\n");
+        goto CleanUp;
+    }
+
+    pKey1Dict = PyDict_New();
+    if (!pKey1Dict) {
+        PyErr_Print();
+        fprintf(stderr, "Failed to create Key1 dictionary\n");
+        goto CleanUp;
+    }
+    PyDict_SetItemString(pKey1Dict, "key", PyUnicode_FromString("FFmpegVideoConvertor"));
+    PyDict_SetItemString(pKey1Dict, "preferedformat", PyUnicode_FromString("mp4"));
+
+    pKey2Dict = PyDict_New();
+    if (!pKey2Dict) {
+        PyErr_Print();
+        fprintf(stderr, "Failed to create Key2 dictionary\n");
+        goto CleanUp;
+    }
+    PyDict_SetItemString(pKey2Dict, "key", PyUnicode_FromString("FFmpegConcat"));
+    PyDict_SetItemString(pKey2Dict, "only_multi_video", Py_True);
+    PyDict_SetItemString(pKey2Dict, "when", PyUnicode_FromString("playlist"));
+
+    pKey3Dict = PyDict_New();
+    if (!pKey3Dict) {
+        PyErr_Print();
+        fprintf(stderr, "Failed to create Key3 dictionary\n");
+        goto CleanUp;
+    }
+    PyDict_SetItemString(pKey3Dict, "already_have_subtitle", Py_False);
+    PyDict_SetItemString(pKey3Dict, "key", PyUnicode_FromString("FFmpegEmbedSubtitle"));
+
+    PyList_SetItem(pPostProcessList, 0, pKey1Dict);
+    PyList_SetItem(pPostProcessList, 1, pKey2Dict);
+    PyList_SetItem(pPostProcessList, 2, pKey3Dict);
+    PyDict_SetItemString(pDict, "postprocessors", pPostProcessList);
+
     PyDict_SetItemString(pOuttmplDict, "default", PyUnicode_FromString(DL_PATH"/%(title)s [%(id)s].%(ext)s"));
     PyDict_SetItemString(pOuttmplDict, "thumbnail", PyUnicode_FromString(DL_PATH"/thumbnails/%(title)s [%(id)s].%(ext)s"));
     PyDict_SetItemString(pDict, "outtmpl", pOuttmplDict);
     PyDict_SetItemString(pDict, "extract_flat", PyUnicode_FromString("discard_in_playlist"));
-    PyDict_SetItemString(pDict, "format", PyUnicode_FromString("bestvideo[height<=1080]+bestaudio/best[height<=1080]"));
+    PyDict_SetItemString(pDict, "final_ext", PyUnicode_FromString("mp4"));
+    PyDict_SetItemString(pDict, "merge_output_format", PyUnicode_FromString("mp4"));
+    //PyDict_SetItemString(pDict, "format", PyUnicode_FromString("bestvideo[height<=1080]+bestaudio/best[height<=1080]"));
+    PyDict_SetItemString(pDict, "format", PyUnicode_FromString("bestvideo[vcodec~='^hevc$|^avc1|^av1$'][ext=mp4]+bestaudio[ext=m4a]"));
     PyDict_SetItemString(pDict, "writethumbnail", Py_True);
+    PyDict_SetItemString(pDict, "writesubtitles", Py_True);
     PyDict_SetItemString(pDict, "fragment_retries", PyLong_FromLong(10));
     PyDict_SetItemString(pDict, "retries", PyLong_FromLong(10));
     PyDict_SetItemString(pDict, "ignoreerrors", PyUnicode_FromString("only_download"));
@@ -177,6 +225,10 @@ CleanUp:
     if (pInstance) Py_DECREF(pInstance);
     if (pDict) Py_DECREF(pDict);
     if (pOuttmplDict) Py_DECREF(pOuttmplDict);
+    if (pPostProcessList) Py_DECREF(pPostProcessList);
+    if (pKey1Dict) Py_DECREF(pKey1Dict);
+    if (pKey2Dict) Py_DECREF(pKey2Dict);
+    if (pKey3Dict) Py_DECREF(pKey3Dict);
     PyGILState_Release(gstate);  // Release GIL
     return ret;
 }

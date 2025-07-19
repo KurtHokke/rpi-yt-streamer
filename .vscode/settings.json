@@ -1,6 +1,6 @@
 {
     "C_Cpp.default.includePath": [
-        "/usr/include/python3.11"
+        "/usr/local/python3.14.0b4_jit/include/python3.14"
     ],
     "C_Cpp.default.intelliSenseMode": "linux-gcc-arm64",
     "C_Cpp.default.compilerPath": "/usr/bin/gcc",

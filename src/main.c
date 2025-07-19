@@ -23,16 +23,18 @@
 #define BUFFER_SIZE 4096
 
 struct program_ctx_t *ctx = NULL;
-
 struct program_ctx_t *ctx_init(void) {
     struct program_ctx_t *ctx_i = malloc(sizeof(*ctx_i));
     *ctx_i = (struct program_ctx_t) {
         .keep_running = 1,
         .server_fd = -1,
+        .log = NULL,
         .Py = {0}
     };
     return ctx_i;
 }
+
+
 
 void *parse_metadata(void *arg)
 {
@@ -167,22 +169,19 @@ int main(int argc, char *argv[])
         } else {
             int *client_fd = malloc(sizeof(int));
             *client_fd = l_client_fd;
-            void *ret_thread;
             pthread_t thread;
-            if (pthread_create(&thread, NULL, handle_client, (void *)client_fd) != 0) {
+            pthread_attr_t attr;
+            pthread_attr_init(&attr);
+            puts("1");
+            pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+            puts("2");
+            if (pthread_create(&thread, &attr, handle_client, (void *)client_fd) != 0) {
                 close(*client_fd);
                 free(client_fd);
                 free_all_exit(1, "Failed to create thread");
             }
-            if (pthread_join(thread, &ret_thread) != 0) {
-                perror("main.pthread_join() failed");
-                if (client_fd) {
-                    close(*client_fd);
-                    free(client_fd);
-                }
-                free_all_exit(1, "Failed to join thread");
-            }
-            puts("successfully joined thread!!");
+            pthread_attr_destroy(&attr);
+            puts("successfully detached thread!!");
         }
     }
     while (1) {

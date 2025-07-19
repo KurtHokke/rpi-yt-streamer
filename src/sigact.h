@@ -16,15 +16,22 @@ struct Py {
     /*YoutubeDL class*/
     PyObject *pClass;
 };
-
-/*Global struct holding program context*/
+/**
+ * @brief Global struct containing program context
+ *  
+ * <b>int</b> server_fd;
+ */
 struct program_ctx_t {
+//  @volatile sig_atomic_t
     /*Keep running*/
     volatile sig_atomic_t keep_running;
 
-    /*Server file descriptor*/
     int server_fd;
     
+
+//  @FILE
+    FILE *log;
+
     struct Py Py;
 };
 extern struct program_ctx_t *ctx;
