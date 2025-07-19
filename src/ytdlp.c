@@ -7,6 +7,34 @@
 #include <stdlib.h>
 #include <jansson.h>
 
+char* get_python_error(void) {
+    PyObject *type = NULL, *value = NULL, *traceback = NULL;
+    PyErr_Fetch(&type, &value, &traceback);
+    PyErr_NormalizeException(&type, &value, &traceback);
+    
+    if (type == NULL) {
+        return strdup("No Python error occurred");
+    }
+
+    PyObject *str_repr = PyObject_Str(value);
+    if (str_repr == NULL) {
+        Py_XDECREF(type);
+        Py_XDECREF(value);
+        Py_XDECREF(traceback);
+        return strdup("Failed to get error string representation");
+    }
+
+    const char *error_msg = PyUnicode_AsUTF8(str_repr);
+    char *result = strdup(error_msg ? error_msg : "Unknown Python error");
+    
+    Py_DECREF(str_repr);
+    Py_XDECREF(type);
+    Py_XDECREF(value);
+    Py_XDECREF(traceback);
+    
+    return result;
+}
+
 json_t *dl_ytdlp(struct ytdlp_opts_t *opts)
 {
     
@@ -19,7 +47,7 @@ json_t *dl_ytdlp(struct ytdlp_opts_t *opts)
     PyObject *pPostProcessList = NULL;
     PyObject *pKey1Dict = NULL;
     PyObject *pKey2Dict = NULL;
-    PyObject *pKey3Dict = NULL;
+    PyObject *pSubLangs = NULL;
     PyObject *pInstance = NULL;
     PyObject *pMethod = NULL;
     PyObject *pArgs = NULL;
@@ -40,45 +68,46 @@ json_t *dl_ytdlp(struct ytdlp_opts_t *opts)
     // Import yt_dlp module
     ctx->Py.pModule = PyImport_ImportModule("yt_dlp");
     if (!ctx->Py.pModule) {
-        PyErr_Print();
+        ctx->keep_running = 0;
+        char *error = get_python_error();
         fprintf(stderr, "Failed to import yt_dlp\n");
         goto CleanUp;
     }
     ctx->Py.pJsonModule = PyImport_ImportModule("json");
     if (!ctx->Py.pJsonModule) {
-        PyErr_Print();
+        char *error = get_python_error();
         fprintf(stderr, "Failed to import json\n");
         goto CleanUp;
     }
     ctx->Py.pClass = PyObject_GetAttrString(ctx->Py.pModule, "YoutubeDL");
     if (!ctx->Py.pClass) {
-        PyErr_Print();
+        char *error = get_python_error();
         fprintf(stderr, "Failed to get YoutubeDL class\n");
         goto CleanUp;
     }
 
     pDict = PyDict_New();
     if (!pDict) {
-        PyErr_Print();
+        char *error = get_python_error();
         fprintf(stderr, "Failed to create options dictionary\n");
         goto CleanUp;
     }
     pOuttmplDict = PyDict_New();
     if (!pOuttmplDict) {
-        PyErr_Print();
+        char *error = get_python_error();
         fprintf(stderr, "Failed to create Outtmpl dictionary\n");
         goto CleanUp;
     }
-    pPostProcessList = PyList_New(3);
+    pPostProcessList = PyList_New(2);
     if (!pPostProcessList) {
-        PyErr_Print();
+        char *error = get_python_error();
         fprintf(stderr, "Failed to create PostProcess list\n");
         goto CleanUp;
     }
 
     pKey1Dict = PyDict_New();
     if (!pKey1Dict) {
-        PyErr_Print();
+        char *error = get_python_error();
         fprintf(stderr, "Failed to create Key1 dictionary\n");
         goto CleanUp;
     }
@@ -87,7 +116,7 @@ json_t *dl_ytdlp(struct ytdlp_opts_t *opts)
 
     pKey2Dict = PyDict_New();
     if (!pKey2Dict) {
-        PyErr_Print();
+        char *error = get_python_error();
         fprintf(stderr, "Failed to create Key2 dictionary\n");
         goto CleanUp;
     }
@@ -95,18 +124,8 @@ json_t *dl_ytdlp(struct ytdlp_opts_t *opts)
     PyDict_SetItemString(pKey2Dict, "only_multi_video", Py_True);
     PyDict_SetItemString(pKey2Dict, "when", PyUnicode_FromString("playlist"));
 
-    pKey3Dict = PyDict_New();
-    if (!pKey3Dict) {
-        PyErr_Print();
-        fprintf(stderr, "Failed to create Key3 dictionary\n");
-        goto CleanUp;
-    }
-    PyDict_SetItemString(pKey3Dict, "already_have_subtitle", Py_False);
-    PyDict_SetItemString(pKey3Dict, "key", PyUnicode_FromString("FFmpegEmbedSubtitle"));
-
     PyList_SetItem(pPostProcessList, 0, pKey1Dict);
     PyList_SetItem(pPostProcessList, 1, pKey2Dict);
-    PyList_SetItem(pPostProcessList, 2, pKey3Dict);
     PyDict_SetItemString(pDict, "postprocessors", pPostProcessList);
 
     PyDict_SetItemString(pOuttmplDict, "default", PyUnicode_FromString(DL_PATH"/%(title)s [%(id)s].%(ext)s"));
@@ -118,7 +137,12 @@ json_t *dl_ytdlp(struct ytdlp_opts_t *opts)
     //PyDict_SetItemString(pDict, "format", PyUnicode_FromString("bestvideo[height<=1080]+bestaudio/best[height<=1080]"));
     PyDict_SetItemString(pDict, "format", PyUnicode_FromString("bestvideo[vcodec~='^hevc$|^avc1|^av1$'][ext=mp4]+bestaudio[ext=m4a]"));
     PyDict_SetItemString(pDict, "writethumbnail", Py_True);
-    PyDict_SetItemString(pDict, "writesubtitles", Py_True);
+
+    PyDict_SetItemString(pDict, "writeautomaticsub", Py_True);
+    pSubLangs = PyList_New(1);
+    PyList_SetItem(pSubLangs, 0, PyUnicode_FromString("en"));
+    PyDict_SetItemString(pDict, "subtitleslangs", pSubLangs);
+
     PyDict_SetItemString(pDict, "fragment_retries", PyLong_FromLong(10));
     PyDict_SetItemString(pDict, "retries", PyLong_FromLong(10));
     PyDict_SetItemString(pDict, "ignoreerrors", PyUnicode_FromString("only_download"));
@@ -128,13 +152,13 @@ json_t *dl_ytdlp(struct ytdlp_opts_t *opts)
 
     pInstance = PyObject_CallObject(ctx->Py.pClass, PyTuple_Pack(1, pDict));
     if (!pInstance) {
-        PyErr_Print();
+        char *error = get_python_error();
         fprintf(stderr, "Failed to instantiate YoutubeDL\n");
         goto CleanUp;
     }
     pMethod = PyObject_GetAttrString(pInstance, "extract_info");
     if (!pMethod) {
-        PyErr_Print();
+        char *error = get_python_error();
         fprintf(stderr, "Failed to get extract_info method\n");
         goto CleanUp;
     }
@@ -149,14 +173,14 @@ json_t *dl_ytdlp(struct ytdlp_opts_t *opts)
 
     pResult = PyObject_CallObject(pMethod, pArgs);
     if (!pResult) {
-        PyErr_Print();
+        char *error = get_python_error();
         fprintf(stderr, "Failed to call extract_info\n");
         goto CleanUp;
     }
 
     pSanitize = PyObject_GetAttrString(pInstance, "sanitize_info");
     if (!pSanitize) {
-        PyErr_Print();
+        char *error = get_python_error();
         fprintf(stderr, "Failed to get sanitize_info method\n");
         goto CleanUp;
     }
@@ -164,7 +188,7 @@ json_t *dl_ytdlp(struct ytdlp_opts_t *opts)
     PyTuple_SetItem(pArgsSanitize, 0, pResult);
     pResultSanitized = PyObject_CallObject(pSanitize, pArgsSanitize);
     if (!pResultSanitized) {
-        PyErr_Print();
+        char *error = get_python_error();
         fprintf(stderr, "Failed to call sanitize_info\n");
         goto CleanUp;
     }
@@ -172,7 +196,7 @@ json_t *dl_ytdlp(struct ytdlp_opts_t *opts)
 
     pJsonDumps = PyObject_GetAttrString(ctx->Py.pJsonModule, "dumps");
     if (!pJsonDumps) {
-        PyErr_Print();
+        char *error = get_python_error();
         fprintf(stderr, "Failed to get json.dumps\n");
         goto CleanUp;
     }
@@ -186,7 +210,7 @@ json_t *dl_ytdlp(struct ytdlp_opts_t *opts)
 
     pJsonString = PyObject_Call(pJsonDumps, pJsonArgs, pKwargs);
     if (!pJsonString || !PyUnicode_Check(pJsonString)) {
-        PyErr_Print();
+        char *error = get_python_error();
         fprintf(stderr, "Failed to serialize pResultSanitized to JSON\n");
         // Fallback to repr()
         pRepr = PyObject_Repr(pResultSanitized);
@@ -228,7 +252,7 @@ CleanUp:
     if (pPostProcessList) Py_DECREF(pPostProcessList);
     if (pKey1Dict) Py_DECREF(pKey1Dict);
     if (pKey2Dict) Py_DECREF(pKey2Dict);
-    if (pKey3Dict) Py_DECREF(pKey3Dict);
+    if (pSubLangs) Py_DECREF(pSubLangs);
     PyGILState_Release(gstate);  // Release GIL
     return ret;
 }

@@ -12,6 +12,8 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <sys/types.h>
+#include <pwd.h>
 #include <arpa/inet.h>
 #include <pthread.h>
 #include <vlc/vlc.h>
@@ -25,10 +27,20 @@
 struct program_ctx_t *ctx = NULL;
 struct program_ctx_t *ctx_init(void) {
     struct program_ctx_t *ctx_i = malloc(sizeof(*ctx_i));
+    struct passwd *pw = getpwuid(getuid());
+    if (!pw) {
+        printf("getpwuid(getuid()) failed\n");
+        return ctx_i;
+    }
+    FILE *log_i = fopen(PROG_WORKDIR"/log", "w");
+    if (!log_i) {
+        printf("fopen() failed\n");
+        return ctx_i;
+    }
     *ctx_i = (struct program_ctx_t) {
         .keep_running = 1,
         .server_fd = -1,
-        .log = NULL,
+        .log = log_i,
         .Py = {0}
     };
     return ctx_i;
@@ -124,6 +136,7 @@ int main(int argc, char *argv[])
 
     setup_signal_handler();
     ctx = ctx_init();
+    if (!ctx) free_all_exit(1, "!ctx");
 
     // Initialize Python once
     Py_Initialize();

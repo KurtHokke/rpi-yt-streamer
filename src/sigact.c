@@ -19,12 +19,17 @@ void free_all_exit(int e, const char *msg)
         ctx->keep_running = 0;
         printf("%s\nshutting down gracefully...\n", msg);
         if (ctx->server_fd != -1) {
+            puts("shutting down server_fd");
             shutdown(ctx->server_fd, SHUT_RDWR);
         }
         if (ctx->Py.main_tstate) {
             PyEval_RestoreThread(ctx->Py.main_tstate);
         }
         if (Py_IsInitialized()) Py_Finalize();
+        if (ctx->log) {
+            puts("closing logfile");
+            fclose(ctx->log);
+        }
         free(ctx);
     }
     exit(e);

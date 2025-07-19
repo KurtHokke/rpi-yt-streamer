@@ -18,18 +18,16 @@ struct Py {
 };
 /**
  * @brief Global struct containing program context
- *  
- * <b>int</b> server_fd;
+ * 
  */
 struct program_ctx_t {
-//  @volatile sig_atomic_t
     /*Keep running*/
     volatile sig_atomic_t keep_running;
 
+    /*Server socket*/
     int server_fd;
     
-
-//  @FILE
+    /*Log file*/
     FILE *log;
 
     struct Py Py;

@@ -12,6 +12,9 @@
 #define YT_DLP_PATH INSTALL_PREFIX "/bin/yt-dlp"
 #define DL_PATH INSTALL_PREFIX "/dl_path"
 
+#define PROG_WORKDIR "/.yt-dlp-server"
+//#define LOG_FILE "/"
+
 #define URL_MAX_LEN 256
 #define OUTTMPL_MAX_LEN 128
 
